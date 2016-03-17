@@ -1,0 +1,8 @@
+---
+# test file for vitalied.nginx-vhosts
+
+- hosts: localhost
+  remote_user: root
+  roles:
+    - vitalied.nginx
+    - ansible-role-nginx-vhosts
