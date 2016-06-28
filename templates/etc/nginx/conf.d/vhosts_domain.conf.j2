@@ -1,0 +1,83 @@
+# {{ ansible_managed }}
+
+# http://{{ nginx_vhosts_domain }}
+server {
+  listen {{ nginx_vhosts_http_port }} default_server;
+  server_name {{ nginx_vhosts_domain }};
+
+{% if nginx_vhosts_use_ssl and nginx_vhosts_redirect_to_ssl %}
+  return 301 https://$server_name$request_uri;
+{% else %}
+  include /etc/nginx/conf.d/{{ nginx_vhosts_domain }}.vhost;
+  proxy_set_header  X_FORWARDED_PROTO  http;
+{% endif %}
+}
+
+{% if nginx_vhosts_use_ssl %}
+# https://{{ nginx_vhosts_domain }}
+server {
+  listen {{ nginx_vhosts_https_port }} ssl {{ nginx_vhosts_ssl_protocol }} default_server;
+  server_name {{ nginx_vhosts_domain }};
+
+  ##
+  # SSL
+  ##
+
+  # SSL strong security: https://cipherli.st
+
+  ssl_protocols              TLSv1.2 TLSv1 TLSv1.1;
+
+  ssl_prefer_server_ciphers  on;
+  ssl_ciphers                EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+  # ssl_ciphers                EECDH+AESGCM:EECDH+AES:EDH+AESGCM!DSS:!SSLv2;
+
+  ssl_ecdh_curve             secp384r1;
+
+  ssl_buffer_size            8k;
+
+  ssl_session_cache          shared:SSL:10m;
+  ssl_session_tickets        off;
+
+  ssl_stapling               on;
+  ssl_stapling_verify        on;
+
+  resolver                   127.0.0.1 8.8.8.8 8.8.4.4 valid=300s ipv6=off;
+  resolver_timeout           5s;
+
+  # HSTS
+  add_header                 Strict-Transport-Security "max-age=63072000; includeSubdomains; preload";
+  add_header                 X-Frame-Options DENY;
+  add_header                 X-Content-Type-Options nosniff;
+
+  # openssl x509 -noout -in certfile.pem -pubkey | openssl asn1parse -noout -inform pem -out public.key
+  # openssl dgst -sha256 -binary public.key | openssl enc -base64
+  # add_header Public-Key-Pins 'pin-sha256="<calculated_SPKI>"; max-age=31536000; includeSubDomains';
+
+  # SSL certificates
+
+{% if nginx_vhosts_use_self_signed_ssl_certs %}
+  ssl_certificate            /etc/nginx/ssl/nginx.crt;
+  ssl_certificate_key        /etc/nginx/ssl/nginx.key;
+{% else %}
+  ssl_certificate            /etc/nginx/ssl/{{ nginx_vhosts_domain }}.combined.crt;
+  ssl_certificate_key        /etc/nginx/ssl/{{ nginx_vhosts_domain }}.key;
+{% endif %}
+
+{% if nginx_vhosts_use_dhparam_cert %}
+  # openssl dhparam -out    /etc/nginx/ssl/dhparams.pem 4096
+  ssl_dhparam                /etc/nginx/ssl/dhparams.pem;
+{% endif %}
+
+  include /etc/nginx/conf.d/{{ nginx_vhosts_domain }}.vhost;
+  proxy_set_header  X_FORWARDED_PROTO  https;
+}
+{% endif %}
+
+{% if nginx_vhosts_use_passenger %}
+{% if not nginx_vhosts_redirect_to_ssl %}
+passenger_pre_start http://{{ nginx_vhosts_domain }}:{{ nginx_vhosts_http_port }}/;
+{% endif %}
+{% if nginx_vhosts_use_ssl %}
+passenger_pre_start https://{{ nginx_vhosts_domain }}:{{ nginx_vhosts_https_port }}/;
+{% endif %}
+{% endif %}
