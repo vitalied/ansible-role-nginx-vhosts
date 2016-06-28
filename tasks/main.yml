@@ -1,2 +1,41 @@
 ---
 # tasks file for vitalied.nginx-vhosts
+
+- block:
+  - name: create ssl certificates directory
+    file:
+      path: /etc/nginx/ssl
+      state: directory
+      mode: 0600
+    tags: vitalied.nginx-vhosts
+
+  - name: create self-signed ssl certificates
+    command: openssl req -new -nodes -x509 -subj '/C=MD/ST=/L=/O=/CN={{ nginx_vhosts_domain }}' -days 3650 -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.crt -extensions v3_ca
+    args:
+      creates: /etc/nginx/ssl/nginx.crt
+    when: nginx_vhosts_use_self_signed_ssl_certs
+    notify: restart nginx
+    tags: vitalied.nginx-vhosts
+
+  - name: create dhparam ssl certificate
+    command: openssl dhparam -out /etc/nginx/ssl/dhparams.pem 4096
+    args:
+      creates: /etc/nginx/ssl/dhparams.pem
+    when: nginx_vhosts_use_dhparam_cert
+    notify: restart nginx
+    tags: vitalied.nginx-vhosts
+
+  when: nginx_vhosts_use_ssl
+  tags: vitalied.nginx-vhosts
+
+- name: copy templates
+  template:
+    src: etc/nginx/conf.d/{{ item.src }}
+    dest: /etc/nginx/conf.d/{{ item.dest }}
+  with_items:
+    - src: "vhosts_domain.conf.j2"
+      dest: "{{ nginx_vhosts_domain }}.conf"
+    - src: "vhosts_domain.vhost.j2"
+      dest: "{{ nginx_vhosts_domain }}.vhost"
+  notify: restart nginx
+  tags: vitalied.nginx-vhosts
