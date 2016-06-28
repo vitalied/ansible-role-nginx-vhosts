@@ -1,2 +1,20 @@
 ---
 # defaults file for vitalied.nginx-vhosts
+
+nginx_vhosts_domain: example.com
+
+nginx_vhosts_root_dir: /srv/apps/{{ nginx_vhosts_domain }}
+
+nginx_vhosts_http_port: 80
+nginx_vhosts_https_port: 443
+
+nginx_vhosts_use_ssl: true
+
+nginx_vhosts_redirect_to_ssl: true
+
+nginx_vhosts_ssl_protocol: http2
+
+nginx_vhosts_use_self_signed_ssl_certs: true
+nginx_vhosts_use_dhparam_cert: false
+
+nginx_vhosts_use_passenger: false
